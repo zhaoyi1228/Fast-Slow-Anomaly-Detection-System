@@ -2,3 +2,5 @@ __pycache__/
 *.py[cod]
 
 .codeflicker/
+
+edge/detection/pre_trained/*.pth

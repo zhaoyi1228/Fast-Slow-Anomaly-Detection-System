@@ -1,0 +1,114 @@
+{
+  "version": "1.0",
+  "description": "Initial Anomaly Detection Rule Library - Video Anomaly Detection Scenarios",
+  "rules": [
+    {
+      "id": "action_001",
+      "description": "Person running or moving fast",
+      "condition": "Person running, moving quickly, or suddenly accelerating in the scene",
+      "indicators": ["running", "fast movement", "rushing", "sprinting"],
+      "scenes": ["street", "campus", "mall", "corridor"],
+      "confidence": 0.7,
+      "severity": "medium"
+    },
+    {
+      "id": "action_002",
+      "description": "Physical fighting or conflict between people",
+      "condition": "Two or more people engaged in physical contact, pushing, or fighting",
+      "indicators": ["fighting", "physical conflict", "pushing", "hitting"],
+      "scenes": ["street", "campus", "mall"],
+      "confidence": 0.9,
+      "severity": "high"
+    },
+    {
+      "id": "action_003",
+      "description": "Person falling down or lying on ground",
+      "condition": "Person suddenly falling from standing position or lying on the ground",
+      "indicators": ["falling", "lying down", "collapsed", "on ground"],
+      "scenes": ["street", "campus", "mall", "corridor"],
+      "confidence": 0.8,
+      "severity": "medium"
+    },
+    {
+      "id": "object_001",
+      "description": "Non-motorized vehicles in pedestrian areas",
+      "condition": "Bicycles, e-bikes, scooters, skateboards, or carts appearing in pedestrian zones",
+      "indicators": ["bicycle", "scooter", "skateboard", "e-bike", "cart"],
+      "scenes": ["pedestrian_area", "campus", "mall"],
+      "confidence": 0.8,
+      "severity": "medium"
+    },
+    {
+      "id": "object_002",
+      "description": "Motor vehicles in non-vehicle areas",
+      "condition": "Cars or motorcycles appearing on sidewalks or pedestrian streets",
+      "indicators": ["car", "motorcycle", "vehicle", "truck"],
+      "scenes": ["pedestrian_area", "campus"],
+      "confidence": 0.9,
+      "severity": "high"
+    },
+    {
+      "id": "object_003",
+      "description": "Abandoned items or suspicious packages",
+      "condition": "Unattended backpacks, luggage, or packages",
+      "indicators": ["abandoned bag", "unattended luggage", "suspicious package"],
+      "scenes": ["station", "mall", "street"],
+      "confidence": 0.7,
+      "severity": "medium"
+    },
+    {
+      "id": "behavior_001",
+      "description": "Abnormal crowd gathering",
+      "condition": "Large number of people suddenly gathering or surrounding something",
+      "indicators": ["crowd gathering", "clustering", "surrounding"],
+      "scenes": ["street", "campus", "mall"],
+      "confidence": 0.6,
+      "severity": "low"
+    },
+    {
+      "id": "behavior_002",
+      "description": "Moving against flow or wrong direction",
+      "condition": "Person moving in opposite direction to the main flow",
+      "indicators": ["walking against flow", "wrong direction", "counter-flow"],
+      "scenes": ["corridor", "escalator", "pathway"],
+      "confidence": 0.6,
+      "severity": "low"
+    },
+    {
+      "id": "behavior_003",
+      "description": "Trespassing into restricted areas",
+      "condition": "Person entering areas marked as restricted or off-limits",
+      "indicators": ["trespassing", "restricted area", "crossing barrier"],
+      "scenes": ["station", "construction", "private_area"],
+      "confidence": 0.8,
+      "severity": "medium"
+    },
+    {
+      "id": "behavior_004",
+      "description": "Jumping or climbing structures",
+      "condition": "Person jumping or climbing structures in inappropriate locations",
+      "indicators": ["jumping", "climbing", "leaping"],
+      "scenes": ["campus", "mall", "station"],
+      "confidence": 0.7,
+      "severity": "medium"
+    }
+  ],
+  "scene_mappings": {
+    "ped2": {
+      "type": "pedestrian_area",
+      "applicable_rules": ["action_001", "action_002", "action_003", "object_001", "object_002"]
+    },
+    "avenue": {
+      "type": "campus",
+      "applicable_rules": ["action_001", "action_002", "action_003", "object_001", "behavior_003", "behavior_004"]
+    },
+    "shanghaitech": {
+      "type": "campus",
+      "applicable_rules": ["action_001", "action_002", "action_003", "object_001", "object_002", "behavior_001"]
+    },
+    "ubnormal": {
+      "type": "street",
+      "applicable_rules": ["action_001", "action_002", "action_003", "object_001", "behavior_001", "behavior_002"]
+    }
+  }
+}

@@ -5,6 +5,7 @@ import uuid
 import os
 import sys
 from typing import List, Optional, Dict, Any
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +15,30 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import API_SERVER, AGENT_CONFIG, DETECTION_CONFIG, RESOURCE_PATHS
 
-ANOMALY_AGENT_PATH = RESOURCE_PATHS["anomaly_agent_project_path"]
+
+def _resolve_anomaly_agent_path(raw_path: str) -> str:
+    """Resolve a usable AnomalyAgent import root.
+
+    Accept either:
+    - the repository root that contains `main_memory_vad.py`
+    - a parent directory that contains an `AnomalyAgent/` subdirectory
+    """
+    candidates = []
+    if raw_path:
+        base = Path(raw_path).expanduser().resolve()
+        candidates.extend([base, base / "AnomalyAgent"])
+
+    cwd_base = Path(os.getcwd()).resolve()
+    candidates.extend([cwd_base / "AnomalyAgent", cwd_base])
+
+    for candidate in candidates:
+        if (candidate / "main_memory_vad.py").exists():
+            return str(candidate)
+
+    return str(Path(raw_path).expanduser()) if raw_path else str(cwd_base / "AnomalyAgent")
+
+
+ANOMALY_AGENT_PATH = _resolve_anomaly_agent_path(RESOURCE_PATHS["anomaly_agent_project_path"])
 if ANOMALY_AGENT_PATH not in sys.path:
     sys.path.insert(0, ANOMALY_AGENT_PATH)
 
@@ -36,6 +60,7 @@ try:
 except Exception as e:
     AGENT_AVAILABLE = False
     IMPORT_ERROR = str(e)
+    print(f"[cloud.api_server] Failed to import AnomalyAgent stack: {IMPORT_ERROR}")
 
 
 # Pydantic模型定义
@@ -191,13 +216,16 @@ async def health_check():
     """健康检查"""
     global request_counter
 
-    return {
+    payload = {
         "status": "ok",
         "agent_available": AGENT_AVAILABLE,
         "agent_loaded": agent_instance is not None,
         "request_count": request_counter,
         "uptime_seconds": time.time() - app.state.start_time if hasattr(app.state, 'start_time') else 0
     }
+    if not AGENT_AVAILABLE:
+        payload["import_error"] = IMPORT_ERROR
+    return payload
 
 
 @app.post("/api/v1/detect")

@@ -209,12 +209,19 @@ class GradioApp:
                 outputs=[video_output, status_output, anomaly_history, score_plot]
             )
 
-            # 自动刷新（使用gradio的定时器）
-            self.app.load(
-                fn=refresh_display,
-                outputs=[video_output, status_output, anomaly_history, score_plot],
-                every=0.5  # 每0.5秒刷新
-            )
+            # 自动刷新（不同 gradio 版本对 every 参数支持不一致）
+            try:
+                self.app.load(
+                    fn=refresh_display,
+                    outputs=[video_output, status_output, anomaly_history, score_plot],
+                    every=0.5  # 每0.5秒刷新
+                )
+            except TypeError:
+                # 兼容较旧/不同实现的 gradio：至少保证页面初始化成功
+                self.app.load(
+                    fn=refresh_display,
+                    outputs=[video_output, status_output, anomaly_history, score_plot],
+                )
 
     def run(self):
         """启动Gradio服务"""

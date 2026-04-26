@@ -26,10 +26,8 @@ class WideBranchNet(nn.Module):
         # 处理参数兼容
         if sample_num is not None:
             time_length = sample_num
-        if not isinstance(num_classes, (list, tuple)) or len(num_classes) != 2:
-            raise TypeError("num_classes must be a two-element sequence: [spatial_classes, temporal_classes]")
         self.time_length = time_length
-        self.num_classes = list(num_classes)
+        self.num_classes = num_classes
 
         # 3D卷积层
         self.model = nn.Sequential(

@@ -123,6 +123,27 @@ cleanup() {
 }
 trap cleanup EXIT
 
+ensure_port_free() {
+  local port="$1"
+  local name="$2"
+  if ! python3 - <<PY
+import socket, sys
+s = socket.socket()
+try:
+    s.bind(("127.0.0.1", int("$port")))
+except OSError:
+    sys.exit(1)
+finally:
+    s.close()
+PY
+  then
+    echo "[error] ${name} port ${port} is already in use on 127.0.0.1." >&2
+    echo "[hint] this usually means an old ${name} process is still running, so the smoketest is talking to a stale service instance." >&2
+    echo "[hint] stop the old process or rerun with a different port." >&2
+    exit 1
+  fi
+}
+
 wait_for_http() {
   local url="$1"
   local name="$2"
@@ -169,6 +190,12 @@ echo "[info] image: $IMAGE_PATH"
 echo "[info] anomaly agent path: $ANOMALY_AGENT_PATH"
 echo "[info] anomaly agent config: $ANOMALY_AGENT_CONFIG_PATH"
 
+rm -f "$LOG_DIR/cloud.log" "$LOG_DIR/relay.log" "$LOG_DIR/jigsaw.log"
+
+ensure_port_free "$CLOUD_PORT" "cloud"
+ensure_port_free "$RELAY_EDGE_PORT" "relay"
+ensure_port_free "$JIGSAW_PORT" "jigsaw"
+
 echo "[start] cloud service"
 (
   cd "$ROOT_DIR/cloud"
@@ -182,7 +209,24 @@ echo "[start] cloud service"
 CLOUD_PID=$!
 
 wait_for_http "$CLOUD_HEALTH_URL" "cloud health"
-echo "[health] cloud => $(curl -fsS "$CLOUD_HEALTH_URL")"
+CLOUD_HEALTH_JSON="$(curl -fsS "$CLOUD_HEALTH_URL")"
+echo "[health] cloud => $CLOUD_HEALTH_JSON"
+
+CLOUD_AGENT_AVAILABLE="$(printf '%s' "$CLOUD_HEALTH_JSON" | json_value "str(data.get('agent_available', False)).lower()")"
+CLOUD_AGENT_LOADED="$(printf '%s' "$CLOUD_HEALTH_JSON" | json_value "str(data.get('agent_loaded', False)).lower()")"
+if [[ "$CLOUD_AGENT_AVAILABLE" != "true" ]]; then
+  CLOUD_IMPORT_ERROR="$(printf '%s' "$CLOUD_HEALTH_JSON" | python3 -c 'import json,sys; data=json.load(sys.stdin); print(data.get("import_error", "<missing import_error>"))')"
+  echo "[error] cloud service is up, but agent import failed (agent_available=false)." >&2
+  echo "[error] import_error: ${CLOUD_IMPORT_ERROR}" >&2
+  echo "[hint] check whether ANOMALY_AGENT_PROJECT_PATH / ANOMALY_AGENT_CONFIG_PATH are correct and whether cloud dependencies can import main_memory_vad + api.handlers." >&2
+  echo "[hint] tail of cloud log:" >&2
+  tail -n 80 "$LOG_DIR/cloud.log" >&2 || true
+  exit 1
+fi
+
+if [[ "$CLOUD_AGENT_LOADED" != "true" ]]; then
+  echo "[warn] cloud agent module is available, but the runtime agent is not loaded yet; direct detect may still fail if startup initialization is incomplete." >&2
+fi
 
 echo "[start] relay service"
 (

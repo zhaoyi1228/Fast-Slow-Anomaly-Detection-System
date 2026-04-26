@@ -9,12 +9,19 @@ import base64
 import time
 import threading
 import os
+import sys
 import numpy as np
 import cv2
 import torch
 from flask import Flask, request, jsonify
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
+
+# Ensure imports like `from config import ...` work when this file is launched as
+# `python detection/jigsaw_service.py` from the edge directory.
+EDGE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if EDGE_ROOT not in sys.path:
+    sys.path.insert(0, EDGE_ROOT)
 
 
 @dataclass

@@ -4,3 +4,5 @@ __pycache__/
 .codeflicker/
 
 edge/detection/pre_trained/*.pth
+.DS_Store
+**/.DS_Store

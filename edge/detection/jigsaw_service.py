@@ -15,7 +15,7 @@ import numpy as np
 import cv2
 import torch
 from flask import Flask, request, jsonify
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 
 # Ensure imports like `from config import ...` work when this file is launched as
@@ -110,7 +110,7 @@ class JigsawDetector:
             normalized[new_key] = value
         return normalized
 
-    def _infer_classifier_dims(self, state_dict: Dict[str, Any]) -> tuple[int, int]:
+    def _infer_classifier_dims(self, state_dict: Dict[str, Any]) -> Tuple[int, int]:
         """Infer classifier output dimensions directly from checkpoint tensors."""
         spatial_key_candidates = [
             "classifier_spatial.2.weight",

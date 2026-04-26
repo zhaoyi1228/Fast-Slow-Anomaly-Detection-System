@@ -1,4 +1,5 @@
 import base64
+import ast
 from pathlib import Path
 
 import cv2
@@ -46,3 +47,18 @@ def test_detector_does_not_return_fake_scores_when_model_unavailable(tmp_path: P
         and result.spatial_score == 0.3
         and result.temporal_score == 0.7
     )
+
+
+def test_jigsaw_service_avoids_pep585_builtin_generics_for_python38_compatibility():
+    source = Path("anomaly_detection_system/edge/detection/jigsaw_service.py").read_text()
+    tree = ast.parse(source)
+
+    builtin_generics = {"tuple", "list", "dict", "set"}
+    offending_annotations = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name):
+            if node.value.id in builtin_generics:
+                offending_annotations.append(node.value.id)
+
+    assert offending_annotations == []

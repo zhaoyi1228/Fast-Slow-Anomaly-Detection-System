@@ -10,6 +10,7 @@ import time
 import threading
 import os
 import sys
+import math
 import numpy as np
 import cv2
 import torch
@@ -65,19 +66,16 @@ class JigsawDetector:
             except ImportError:
                 from models.model import WideBranchNet
 
-            spatial_classes = self.sample_num ** 2
-            temporal_classes = self.sample_num
+            # 加载权重
+            checkpoint = torch.load(checkpoint_path, map_location=self.device)
+            state_dict = checkpoint['model_state_dict'] if 'model_state_dict' in checkpoint else checkpoint
+            spatial_classes, temporal_classes = self._infer_classifier_dims(state_dict)
             self._model = WideBranchNet(
                 time_length=self.sample_num,
                 num_classes=[spatial_classes, temporal_classes],
             )
-
-            # 加载权重
-            checkpoint = torch.load(checkpoint_path, map_location=self.device)
-            if 'model_state_dict' in checkpoint:
-                self._model.load_state_dict(checkpoint['model_state_dict'])
-            else:
-                self._model.load_state_dict(checkpoint)
+            state_dict = self._normalize_legacy_state_dict_keys(state_dict)
+            self._model.load_state_dict(state_dict)
 
             self._model.to(self.device)
             self._model.eval()
@@ -94,6 +92,56 @@ class JigsawDetector:
             self._model_error = str(e)
             print(f"模型加载失败: {e}")
             self._model = None
+
+    def _normalize_legacy_state_dict_keys(self, state_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Map legacy classifier names to the current model names.
+
+        Older Unified Jigsaw checkpoints use `classifier_1` / `classifier_2`,
+        while the current edge model uses `classifier_spatial` /
+        `classifier_temporal` for clarity.
+        """
+        normalized = {}
+        for key, value in state_dict.items():
+            new_key = key
+            if key.startswith("classifier_1."):
+                new_key = key.replace("classifier_1.", "classifier_spatial.", 1)
+            elif key.startswith("classifier_2."):
+                new_key = key.replace("classifier_2.", "classifier_temporal.", 1)
+            normalized[new_key] = value
+        return normalized
+
+    def _infer_classifier_dims(self, state_dict: Dict[str, Any]) -> tuple[int, int]:
+        """Infer classifier output dimensions directly from checkpoint tensors."""
+        spatial_key_candidates = [
+            "classifier_spatial.2.weight",
+            "classifier_1.2.weight",
+        ]
+        temporal_key_candidates = [
+            "classifier_temporal.2.weight",
+            "classifier_2.2.weight",
+        ]
+
+        spatial_classes = None
+        temporal_classes = None
+
+        for key in spatial_key_candidates:
+            weight = state_dict.get(key)
+            if weight is not None:
+                spatial_classes = int(weight.shape[0])
+                break
+
+        for key in temporal_key_candidates:
+            weight = state_dict.get(key)
+            if weight is not None:
+                temporal_classes = int(weight.shape[0])
+                break
+
+        if spatial_classes is None:
+            spatial_classes = self.sample_num ** 2
+        if temporal_classes is None:
+            temporal_classes = self.sample_num ** 2
+
+        return spatial_classes, temporal_classes
 
     def detect_single(self, image_base64: str) -> JigsawResult:
         """
@@ -179,15 +227,24 @@ class JigsawDetector:
             )
 
     def _compute_spatial_score(self, spatial_logits: torch.Tensor) -> float:
-        logits = spatial_logits.reshape(-1, self.sample_num, self.sample_num)
+        width = int(math.isqrt(spatial_logits.shape[-1]))
+        if width * width != spatial_logits.shape[-1]:
+            raise RuntimeError(f"Spatial logits dim {spatial_logits.shape[-1]} is not a square number")
+        logits = spatial_logits.reshape(-1, width, width)
         probs = torch.softmax(logits, dim=-1)
         diagonal = torch.diagonal(probs, dim1=1, dim2=2)
         return diagonal.min(dim=1).values[0].item()
 
     def _compute_temporal_score(self, temporal_logits: torch.Tensor) -> float:
+        width = int(math.isqrt(temporal_logits.shape[-1]))
+        if width * width == temporal_logits.shape[-1]:
+            logits = temporal_logits.reshape(-1, width, width)
+            probs = torch.softmax(logits, dim=-1)
+            diagonal = torch.diagonal(probs, dim1=1, dim2=2)
+            return diagonal.min(dim=1).values[0].item()
+
         probs = torch.softmax(temporal_logits, dim=-1)
-        diagonal = torch.diagonal(torch.diag_embed(probs), dim1=1, dim2=2)
-        return diagonal.min(dim=1).values[0].item()
+        return probs.min(dim=-1).values[0].item()
 
     def _preprocess_frames(self) -> Optional[torch.Tensor]:
         """预处理帧序列"""

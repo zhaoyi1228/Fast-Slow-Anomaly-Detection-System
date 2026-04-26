@@ -60,7 +60,10 @@ class JigsawDetector:
     def _load_model(self, checkpoint_path: str):
         """加载模型权重"""
         try:
-            from .models.model import WideBranchNet
+            try:
+                from .models.model import WideBranchNet
+            except ImportError:
+                from models.model import WideBranchNet
 
             spatial_classes = self.sample_num ** 2
             temporal_classes = self.sample_num

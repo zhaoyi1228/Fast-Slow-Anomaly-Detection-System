@@ -55,6 +55,27 @@ JIGSAW_MODEL_CONFIG = {
     "gpu_id": 0,  # GPU ID，空字符串表示CPU
 }
 
+# ========== MAE服务配置 ==========
+MAE_SERVER = {
+    "host": "localhost",
+    "port": 8001,  # 与Jigsaw端口区分
+    "detect_endpoint": "/detect",
+    "health_endpoint": "/health",
+    "reset_endpoint": "/reset",
+}
+
+# ========== MAE模型配置 ==========
+MAE_MODEL_CONFIG = {
+    "checkpoint_dir": "/home/zhaoyi/aed-mae/ckpt/shanghai",  # ShanghaiTech checkpoint目录
+    "teacher_ckpt": "checkpoint-best.pth",
+    "student_ckpt": "checkpoint-best-student.pth",
+    "input_size": (160, 320),  # ShanghaiTech配置 (H, W)
+    "patch_size": 8,
+    "buffer_size": 7,  # 帧缓冲大小
+    "mask_ratio": 0.5,  # MAE mask比例
+    "gpu_id": 0,  # GPU ID，-1表示使用CPU
+}
+
 # ========== 日志配置 ==========
 LOG_CONFIG = {
     "level": "INFO",

@@ -64,6 +64,14 @@ class RelayNode:
         self.is_running = False
         self._threads = []
 
+    def _keep_alive_without_gradio(self):
+        """当 Gradio 启动失败时，保持接收/转发链路继续运行。"""
+        print("Relay 将继续以无界面模式运行。")
+        print(f"端侧仍可发送到: http://127.0.0.1:{self.edge_port}/api/edge/status")
+        print("按 Ctrl+C 停止中间节点。")
+        while self.is_running:
+            time.sleep(1.0)
+
     def start(self):
         """启动所有服务"""
         print("=" * 50)
@@ -93,7 +101,12 @@ class RelayNode:
 
         # 启动Gradio（主线程）
         print("\n启动Gradio界面...")
-        self.gradio_app.run()
+        try:
+            self.gradio_app.run()
+        except Exception as exc:
+            print("\n警告: Gradio界面启动失败，已切换为无界面模式。")
+            print(f"Gradio错误: {exc}")
+            self._keep_alive_without_gradio()
 
     def stop(self):
         """停止所有服务"""

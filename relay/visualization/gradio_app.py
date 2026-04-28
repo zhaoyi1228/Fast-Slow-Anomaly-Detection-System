@@ -193,13 +193,22 @@ class GradioApp:
                 history = self.state.get_anomaly_history()
                 plot_data = self.state.get_score_plot_data()
 
-                if plot_data["frames"]:
-                    plot_value = gr.LinePlotData(
-                        x=plot_data["frames"],
-                        y=plot_data["scores"]
-                    )
-                else:
-                    plot_value = None
+                plot_value = None
+                if plot_data["frames"] and hasattr(gr, "LinePlotData"):
+                    try:
+                        # 某些 gradio 版本/依赖组合下，LinePlotData 会在
+                        # startup-events 阶段抛异常并导致整个 UI 启动失败。
+                        # 这里优先尝试官方对象，失败时降级为不显示曲线，
+                        # 但保证页面其余部分仍能正常打开。
+                        plot_value = gr.LinePlotData(
+                            x=plot_data["frames"],
+                            y=plot_data["scores"]
+                        )
+                    except Exception as exc:
+                        print(f"警告: LinePlot 渲染失败，已跳过曲线刷新: {exc}")
+                        plot_value = None
+                elif plot_data["frames"]:
+                    print("警告: 当前 gradio 版本不支持 LinePlotData，已跳过分数曲线刷新。")
 
                 return frame, status, history, plot_value
 

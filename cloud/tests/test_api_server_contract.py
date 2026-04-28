@@ -1,6 +1,7 @@
 import importlib
 import sys
 import types
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -129,3 +130,46 @@ async def test_run_detection_uses_detection_handler_contract(monkeypatch):
     assert captured["video_id"] == "video-2"
     assert captured["frames_input"][0]["frame_id"] == 1
     assert result["success"] is True
+
+
+def test_start_cloud_main_applies_cli_overrides_to_shared_config(monkeypatch):
+    start_cloud = importlib.import_module("anomaly_detection_system.cloud.start_cloud")
+
+    start_cloud.API_SERVER.update({"host": "0.0.0.0", "port": 8001, "workers": 1})
+    start_cloud.RESOURCE_PATHS.update({"anomaly_agent_project_path": "./AnomalyAgent"})
+    start_cloud.AGENT_CONFIG.update({"config_path": "AnomalyAgent/config/api_config.yaml"})
+
+    fake_service_pkg = types.ModuleType("service")
+    fake_api_server = types.ModuleType("service.api_server")
+    fake_api_server.app = SimpleNamespace(state=SimpleNamespace())
+    monkeypatch.setitem(sys.modules, "service", fake_service_pkg)
+    monkeypatch.setitem(sys.modules, "service.api_server", fake_api_server)
+
+    captured = {}
+    monkeypatch.setattr(
+        start_cloud.argparse.ArgumentParser,
+        "parse_args",
+        lambda self: SimpleNamespace(
+            host="0.0.0.0",
+            port=8010,
+            workers=1,
+            agent_path="/tmp/custom-agent",
+            config_path="/tmp/custom-agent/config/api_config.yaml",
+        ),
+    )
+    monkeypatch.setattr(
+        start_cloud.uvicorn,
+        "run",
+        lambda app, host, port, workers: captured.update(
+            {"app": app, "host": host, "port": port, "workers": workers}
+        ),
+    )
+
+    start_cloud.main()
+
+    assert start_cloud.API_SERVER["host"] == "0.0.0.0"
+    assert start_cloud.API_SERVER["port"] == 8010
+    assert start_cloud.RESOURCE_PATHS["anomaly_agent_project_path"] == "/tmp/custom-agent"
+    assert start_cloud.AGENT_CONFIG["config_path"] == "/tmp/custom-agent/config/api_config.yaml"
+    assert captured["host"] == "0.0.0.0"
+    assert captured["port"] == 8010

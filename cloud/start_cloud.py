@@ -31,7 +31,16 @@ def main():
 
     args = parser.parse_args()
 
+    # 将 CLI 覆盖同步回共享配置，确保后续导入的 api_server
+    # 读取到的是本次启动参数，而不是模块加载时的默认值。
+    API_SERVER["host"] = args.host
+    API_SERVER["port"] = args.port
+    RESOURCE_PATHS["anomaly_agent_project_path"] = args.agent_path
+    AGENT_CONFIG["config_path"] = args.config_path
+
     # 设置Agent路径环境变量
+    os.environ["API_HOST"] = args.host
+    os.environ["API_PORT"] = str(args.port)
     os.environ["ANOMALY_AGENT_PROJECT_PATH"] = args.agent_path
     os.environ["ANOMALY_AGENT_CONFIG_PATH"] = args.config_path
 

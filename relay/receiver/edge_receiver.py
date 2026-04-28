@@ -17,11 +17,12 @@ class FrameResult:
     timestamp: float
     color_base64: str
     depth_base64: Optional[str]
-    jigsaw_score: float
+    anomaly_score: float  # 异常分数（支持 jigsaw_score 或 anomaly_score）
     spatial_score: float
     temporal_score: float
     is_anomalous: bool
     received_time: float
+    detector_type: Optional[str] = None  # 检测器类型
 
 
 class EdgeReceiver:
@@ -63,10 +64,13 @@ class EdgeReceiver:
                 data = request.get_json()
 
                 # 验证必要字段
-                required_fields = ['frame_id', 'timestamp', 'color_base64', 'jigsaw_score']
+                required_fields = ['frame_id', 'timestamp', 'color_base64']
                 for field in required_fields:
                     if field not in data:
                         return jsonify({"error": f"缺少字段: {field}"}), 400
+
+                # 获取异常分数（兼容 anomaly_score 和 jigsaw_score）
+                anomaly_score = data.get('anomaly_score', data.get('jigsaw_score', 0.0))
 
                 # 创建帧结果
                 frame_result = FrameResult(
@@ -74,11 +78,12 @@ class EdgeReceiver:
                     timestamp=data['timestamp'],
                     color_base64=data['color_base64'],
                     depth_base64=data.get('depth_base64'),
-                    jigsaw_score=data['jigsaw_score'],
+                    anomaly_score=anomaly_score,
                     spatial_score=data.get('spatial_score', 1.0),
                     temporal_score=data.get('temporal_score', 1.0),
                     is_anomalous=data.get('is_anomalous', False),
-                    received_time=time.time()
+                    received_time=time.time(),
+                    detector_type=data.get('detector_type', 'jigsaw')
                 )
 
                 # 添加到帧缓冲
@@ -97,6 +102,8 @@ class EdgeReceiver:
                 return jsonify({
                     "status": "success",
                     "frame_id": frame_result.frame_id,
+                    "anomaly_score": frame_result.anomaly_score,
+                    "detector_type": frame_result.detector_type,
                     "buffer_size": self.frame_buffer.size() if self.frame_buffer else 0
                 })
 
@@ -140,7 +147,8 @@ class EdgeReceiver:
                 "frames": [{
                     "frame_id": f.frame_id,
                     "timestamp": f.timestamp,
-                    "jigsaw_score": f.jigsaw_score,
+                    "anomaly_score": f.anomaly_score,
+                    "detector_type": f.detector_type,
                     "is_anomalous": f.is_anomalous,
                 } for f in frames]
             })

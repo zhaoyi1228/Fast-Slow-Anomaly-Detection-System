@@ -47,6 +47,7 @@ class RelayNode:
         self.aggregator = ResultAggregator(
             cloud_client=self.cloud_client,
             frame_callback=lambda frame, result: self.state.update_frame(frame, result),
+            deep_analysis_callback=lambda frames, result: self.state.update_deep_analysis(frames, result),
         )
 
         self.receiver = EdgeReceiver(

@@ -66,7 +66,7 @@ MAE_SERVER = {
 
 # ========== MAE模型配置 ==========
 MAE_MODEL_CONFIG = {
-    "checkpoint_dir": "/home/zhaoyi/aed-mae/ckpt/shanghai",  # ShanghaiTech checkpoint目录
+    "checkpoint_dir": "./edge/detection/pre_trained/aed-mae/stc",  # ShanghaiTech checkpoint目录
     "teacher_ckpt": "checkpoint-best.pth",
     "student_ckpt": "checkpoint-best-student.pth",
     "input_size": (160, 320),  # ShanghaiTech配置 (H, W)

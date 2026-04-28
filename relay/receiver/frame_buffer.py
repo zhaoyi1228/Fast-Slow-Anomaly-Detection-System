@@ -90,7 +90,7 @@ class FrameBuffer:
         threshold = threshold or FUSION_CONFIG["jigsaw_threshold"]
 
         with self._lock:
-            anomalous = [f for f in self._buffer if f.jigsaw_score < threshold]
+            anomalous = [f for f in self._buffer if f.anomaly_score < threshold]
 
             if count:
                 return anomalous[-count:]
@@ -158,7 +158,7 @@ def main():
             timestamp=i * 0.2,
             color_base64="test",
             depth_base64=None,
-            jigsaw_score=0.3 if i % 2 == 0 else 0.7,
+            anomaly_score=0.3 if i % 2 == 0 else 0.7,
             spatial_score=0.5,
             temporal_score=0.5,
             is_anomalous=i % 2 == 0,

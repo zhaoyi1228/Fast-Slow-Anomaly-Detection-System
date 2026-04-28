@@ -78,7 +78,7 @@ class CloudClient:
             frames: 帧数据列表，每个包含:
                 - frame_id: 帧ID
                 - color_base64: 彩色图像base64
-                - jigsaw_score: Jigsaw分数
+                - anomaly_score: 异常分数
             scene_type: 场景类型
             dataset: 数据集类型
 
@@ -132,7 +132,7 @@ class CloudClient:
                     "image_base64": f.get("image_base64") or f.get("color_base64"),
                     "frame_id": f.get("frame_id"),
                     "timestamp": f.get("timestamp"),
-                    "jigsaw_score": f.get("jigsaw_score"),
+                    "anomaly_score": f.get("anomaly_score"),
                 }
                 for f in frames
             ],

@@ -29,7 +29,7 @@ def _make_frame(frame_id: int, score: float, now: float) -> FrameResult:
         timestamp=frame_id * 0.2,
         color_base64=f"frame-{frame_id}",
         depth_base64=None,
-        jigsaw_score=score,
+        anomaly_score=score,
         spatial_score=score,
         temporal_score=score,
         is_anomalous=score < 0.4,

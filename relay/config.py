@@ -15,8 +15,8 @@ EDGE_RECEIVER = {
 
 # ========== 云侧服务配置（通过VPN访问）==========
 CLOUD_SERVER = {
-    "host": os.environ.get("CLOUD_HOST", "10.8.0.1"),  # 云侧VPN IP
-    "port": int(os.environ.get("CLOUD_PORT", 8001)),
+    "host": os.environ.get("CLOUD_HOST", "10.24.1.7"),  # 云侧VPN IP
+    "port": int(os.environ.get("CLOUD_PORT", 8010)),
     "detect_endpoint": "/api/v1/detect",
     "health_endpoint": "/api/v1/health",
 }

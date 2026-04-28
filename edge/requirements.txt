@@ -5,6 +5,9 @@
 torch>=1.10.0
 numpy>=1.20.0
 opencv-python>=4.5.0
+scipy>=1.7.0          # MAE-CvT 模型需要 (scipy.ndimage.zoom)
+einops>=0.4.0         # MAE-CvT 模型需要 (rearrange, Rearrange)
+timm>=0.6.0           # MAE-CvT 模型需要 (DropPath, trunc_normal_)
 
 # 服务与通信
 flask>=2.0.0

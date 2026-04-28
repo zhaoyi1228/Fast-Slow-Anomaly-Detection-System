@@ -87,6 +87,8 @@ class DetectResponse(BaseModel):
     success: bool
     request_id: str
     video_id: Optional[str] = None
+    session_folder: Optional[str] = None
+    session_info: Optional[Dict[str, Any]] = None
     result: Optional[Dict[str, Any]] = None
     processing_time_ms: int
     error: Optional[str] = None
@@ -151,11 +153,13 @@ def get_agent():
             frame_processor = FrameProcessor(
                 temp_dir=AGENT_CONFIG["temp_frame_dir"],
                 cleanup=AGENT_CONFIG["cleanup_temp_frames"],
+                save_results=AGENT_CONFIG.get("save_results", True),
             )
             detection_handler = DetectionHandler(
                 agent=agent_instance,
                 frame_processor=frame_processor,
                 config=agent_config,
+                save_results=AGENT_CONFIG.get("save_results", True),
             )
         except Exception as e:
             print(f"Agent创建失败: {e}")
@@ -265,6 +269,8 @@ async def detect(request: DetectRequest):
             success=result.get("success", True),
             request_id=result.get("request_id", request_id),
             video_id=result.get("video_id", request.video_id),
+            session_folder=result.get("session_folder"),
+            session_info=result.get("session_info"),
             result=result.get("result"),
             processing_time_ms=processing_time_ms
         )
@@ -331,6 +337,57 @@ async def get_config():
         "anomaly_agent_project_path": RESOURCE_PATHS["anomaly_agent_project_path"],
         "agent_yaml_config_path": AGENT_CONFIG["config_path"],
     }
+
+
+@app.get("/api/v1/sessions")
+async def list_sessions():
+    """列出所有 session 文件夹（用于回溯定位）"""
+    if detection_handler is None:
+        raise HTTPException(status_code=404, detail="DetectionHandler未初始化")
+
+    sessions = detection_handler.list_sessions()
+    session_info_list = []
+
+    for session_folder in sessions:
+        try:
+            info = detection_handler.get_session_info(session_folder)
+            session_info_list.append(info)
+        except Exception:
+            session_info_list.append({
+                "session_folder": session_folder,
+                "session_name": os.path.basename(session_folder),
+                "error": "无法获取信息"
+            })
+
+    return {
+        "total_sessions": len(sessions),
+        "sessions": session_info_list,
+        "temp_frame_dir": AGENT_CONFIG["temp_frame_dir"],
+    }
+
+
+@app.get("/api/v1/sessions/{session_name}")
+async def get_session_detail(session_name: str):
+    """获取指定 session 的详细信息"""
+    if detection_handler is None:
+        raise HTTPException(status_code=404, detail="DetectionHandler未初始化")
+
+    session_folder = os.path.join(AGENT_CONFIG["temp_frame_dir"], session_name)
+
+    if not os.path.exists(session_folder):
+        raise HTTPException(status_code=404, detail=f"Session不存在: {session_name}")
+
+    info = detection_handler.get_session_info(session_folder)
+
+    # 尝试读取检测结果
+    result_path = os.path.join(session_folder, "result", "detection_result.json")
+    if os.path.exists(result_path):
+        import json
+        with open(result_path, "r") as f:
+            detection_result = json.load(f)
+        info["detection_result"] = detection_result
+
+    return info
 
 
 def main():

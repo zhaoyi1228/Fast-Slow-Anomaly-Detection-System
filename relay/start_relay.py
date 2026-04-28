@@ -114,16 +114,16 @@ class RelayNode:
         print("\n停止中间节点...")
         self.is_running = False
 
-        # 停止各组件
-        self.frame_buffer.stop()
-        self.cloud_client.stop()
-        self.aggregator.reset()
-
-        # 打印统计
+        # 先打印统计，再停止各组件
         print(f"\n接收帧数: {self.receiver.stats['total_frames_received']}")
         print(f"异常帧数: {self.receiver.stats['anomalous_frames_received']}")
         print(f"深度分析触发次数: {self.aggregator.stats['deep_analyses_triggered']}")
         print(f"确认异常次数: {self.aggregator.stats['confirmed_anomalies']}")
+
+        # 停止各组件
+        self.frame_buffer.stop()
+        self.cloud_client.stop()
+        self.aggregator.reset()
 
     def get_status(self) -> Dict[str, Any]:
         """获取节点状态"""

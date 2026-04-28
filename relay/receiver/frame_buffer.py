@@ -87,10 +87,10 @@ class FrameBuffer:
         """
         from config import FUSION_CONFIG
 
-        threshold = threshold or FUSION_CONFIG["jigsaw_threshold"]
+        threshold = threshold or FUSION_CONFIG["anomaly_threshold"]
 
         with self._lock:
-            anomalous = [f for f in self._buffer if f.anomaly_score < threshold]
+            anomalous = [f for f in self._buffer if f.anomaly_score >= threshold]
 
             if count:
                 return anomalous[-count:]

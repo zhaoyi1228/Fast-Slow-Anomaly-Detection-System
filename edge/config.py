@@ -34,7 +34,7 @@ REALSENSE_CONFIG = {
 
 # ========== 检测参数配置 ==========
 DETECTION_CONFIG = {
-    "jigsaw_threshold": 0.4,  # 低于此值认为可能异常
+    "anomaly_threshold": 0.5,  # 分数>=此值判定为异常
     "fps_sample": 5,  # 每秒采样帧数（实际处理频率）
     "frame_skip": 6,  # 每30fps跳过6帧，实现5fps采样
 }

@@ -106,6 +106,8 @@ class VisualizationState:
         """解码base64图像"""
         image_data = base64.b64decode(image_base64)
         image = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
+        # BGR转RGB，用于Gradio显示
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return image
 
     def get_display_frame(self) -> Optional[np.ndarray]:
@@ -273,25 +275,21 @@ class GradioApp:
         with gr.Blocks(title="异常检测监控系统") as self.app:
             gr.Markdown("# 异常检测监控系统")
 
-            # 第一行：实时视频 + 检测状态
+            # 主显示区域：左右两列
             with gr.Row():
+                # 左侧：实时视频 + 云侧检测输入 + 检测日志
                 with gr.Column(scale=2):
                     video_output = gr.Image(label="实时视频", height=400)
-                    status_output = gr.Textbox(label="检测状态", lines=3)
+                    deep_analysis_gallery = gr.Gallery(label="云侧检测输入", columns=5, height=200)
+                    anomaly_history = gr.Textbox(label="检测日志", lines=6)
 
-                with gr.Column(scale=1):
-                    score_plot = gr.Plot(label="异常分数曲线")
-
-            # 第二行：深度分析模块
-            with gr.Row():
+                # 右侧：快速检测结果 + 云侧检测结果
                 with gr.Column(scale=2):
-                    deep_analysis_gallery = gr.Gallery(label="深度分析帧", columns=5, height=200)
-                    deep_analysis_result = gr.Textbox(label="深度分析结果", lines=8)
+                    score_plot = gr.Plot(label="快速检测异常分数曲线")
+                    status_output = gr.Textbox(label="快速检测结果", lines=3)
+                    deep_analysis_result = gr.Textbox(label="云侧检测结果", lines=6)
 
-                with gr.Column(scale=1):
-                    anomaly_history = gr.Textbox(label="异常历史", lines=10)
-
-            # 第三行：控制按钮
+            # 控制按钮
             with gr.Row():
                 refresh_btn = gr.Button("刷新显示", variant="primary")
                 reset_btn = gr.Button("重置系统")

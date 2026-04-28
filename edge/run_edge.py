@@ -142,7 +142,7 @@ class EdgeDetector:
             st_score = detector_result.get("student_teacher_score", 0.0)
             buffer_ready = detector_result.get("buffer_ready", False)
             # MAE分数越高越异常，阈值判断由下游决定
-            is_anomalous = anomaly_score > 0.5  # 临时阈值，实际由下游判断
+            is_anomalous = anomaly_score > DETECTION_CONFIG["anomaly_threshold"]  # 临时阈值，实际由下游判断
             status = "异常?" if is_anomalous else "正常"
             if not buffer_ready:
                 status = "缓冲未就绪"
@@ -150,8 +150,8 @@ class EdgeDetector:
             anomaly_score = detector_result.get("anomaly_score", 1.0)
             spatial_score = detector_result.get("spatial_score", 1.0)
             temporal_score = detector_result.get("temporal_score", 1.0)
-            # Jigsaw分数越低越异常
-            is_anomalous = anomaly_score < DETECTION_CONFIG["jigsaw_threshold"]
+            # 分数越低越异常
+            is_anomalous = anomaly_score < DETECTION_CONFIG["anomaly_threshold"]
             status = "异常?" if is_anomalous else "正常"
 
         # 步骤2: 发送到中间机器

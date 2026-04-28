@@ -34,7 +34,7 @@ REALSENSE_CONFIG = {
 
 # ========== 检测参数配置 ==========
 DETECTION_CONFIG = {
-    "jigsaw_threshold": 0.4,  # 低于此值认为可能异常
+    "anomaly_threshold": 0.5,  # 分数>=此值判定为异常
     "fps_sample": 5,  # 每秒采样帧数（实际处理频率）
     "frame_skip": 6,  # 每30fps跳过6帧，实现5fps采样
 }
@@ -66,7 +66,7 @@ MAE_SERVER = {
 
 # ========== MAE模型配置 ==========
 MAE_MODEL_CONFIG = {
-    "checkpoint_dir": "/home/zhaoyi/aed-mae/ckpt/shanghai",  # ShanghaiTech checkpoint目录
+    "checkpoint_dir": "./edge/detection/pre_trained/aed-mae/stc",  # ShanghaiTech checkpoint目录
     "teacher_ckpt": "checkpoint-best.pth",
     "student_ckpt": "checkpoint-best-student.pth",
     "input_size": (160, 320),  # ShanghaiTech配置 (H, W)

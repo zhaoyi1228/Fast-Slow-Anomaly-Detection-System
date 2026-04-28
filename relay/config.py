@@ -15,8 +15,8 @@ EDGE_RECEIVER = {
 
 # ========== 云侧服务配置（通过VPN访问）==========
 CLOUD_SERVER = {
-    "host": os.environ.get("CLOUD_HOST", "10.8.0.1"),  # 云侧VPN IP
-    "port": int(os.environ.get("CLOUD_PORT", 8001)),
+    "host": os.environ.get("CLOUD_HOST", "10.24.1.7"),  # 云侧VPN IP
+    "port": int(os.environ.get("CLOUD_PORT", 8010)),
     "detect_endpoint": "/api/v1/detect",
     "health_endpoint": "/api/v1/health",
 }
@@ -30,11 +30,12 @@ GRADIO_SERVER = {
 
 # ========== 融合检测参数配置 ==========
 FUSION_CONFIG = {
-    "jigsaw_threshold": 0.4,  # Jigsaw分数阈值
+    "anomaly_threshold": 0.5,  # 异常分数阈值（分数>=此值判定为异常）
     "window_size_seconds": 5.0,  # 滑动窗口大小（秒）
     "window_threshold_percent": 0.3,  # 窗口内异常帧比例阈值
     "deep_analysis_batch_size": 5,  # 发送给云侧的帧数
     "deep_analysis_min_interval": 3.0,  # 深度分析最小间隔（秒）
+    "deep_analysis_sample_window_seconds": 3.0,  # 帧采样覆盖时间范围（秒）
 }
 
 # ========== 帧缓冲配置 ==========

@@ -29,10 +29,10 @@ def _make_frame(frame_id: int, score: float, now: float) -> FrameResult:
         timestamp=frame_id * 0.2,
         color_base64=f"frame-{frame_id}",
         depth_base64=None,
-        jigsaw_score=score,
+        anomaly_score=score,
         spatial_score=score,
         temporal_score=score,
-        is_anomalous=score < 0.4,
+        is_anomalous=score >= 0.5,
         received_time=now,
     )
 
@@ -43,7 +43,7 @@ def test_frame_callback_is_called_after_add_frame_result():
         cloud_client=None,
         window_size_seconds=5.0,
         window_threshold=0.3,
-        jigsaw_threshold=0.4,
+        anomaly_threshold=0.5,
         frame_callback=lambda frame, fusion: callback_calls.append((frame.frame_id, fusion.final_decision)),
     )
 
@@ -58,12 +58,12 @@ def test_deep_analysis_runs_without_holding_lock_and_updates_result():
         cloud_client=cloud_client,
         window_size_seconds=5.0,
         window_threshold=0.3,
-        jigsaw_threshold=0.4,
+        anomaly_threshold=0.5,
     )
 
     now = time.time()
     results = []
-    for idx, score in enumerate([0.2, 0.3, 0.2, 0.8], start=1):
+    for idx, score in enumerate([0.8, 0.7, 0.8, 0.2], start=1):
         results.append(aggregator.add_frame_result(_make_frame(idx, score, now + idx * 0.01)))
 
     assert len(cloud_client.calls) >= 1

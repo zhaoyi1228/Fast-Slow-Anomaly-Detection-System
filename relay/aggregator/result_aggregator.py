@@ -28,7 +28,7 @@ class FusionResult:
     """融合检测结果"""
     frame_id: int
     timestamp: float
-    jigsaw_score: float
+    anomaly_score: float  # 异常分数
     spatial_score: float = 0.0
     temporal_score: float = 0.0
     window_status: Optional[WindowStatus] = None
@@ -67,8 +67,8 @@ class ResultAggregator:
     """结果聚合器主类"""
 
     def __init__(self, cloud_client=None, window_size_seconds: float = None,
-                 window_threshold: float = None, jigsaw_threshold: float = None,
-                 frame_callback=None):
+                 window_threshold: float = None, anomaly_threshold: float = None,
+                 frame_callback=None, deep_analysis_callback=None):
         """
         初始化聚合器
 
@@ -76,14 +76,16 @@ class ResultAggregator:
             cloud_client: 云侧客户端
             window_size_seconds: 滑动窗口大小
             window_threshold: 窗口内异常帧比例阈值
-            jigsaw_threshold: Jigsaw分数阈值
+            anomaly_threshold: 异常分数阈值（分数>=此值判定为异常）
+            frame_callback: 帧处理完成回调
+            deep_analysis_callback: 深度分析完成回调，传递(frames_to_analyze, fusion_result)
         """
         from config import FUSION_CONFIG
 
         self.cloud_client = cloud_client
         self.window_size = window_size_seconds or FUSION_CONFIG["window_size_seconds"]
         self.window_threshold = window_threshold or FUSION_CONFIG["window_threshold_percent"]
-        self.jigsaw_threshold = jigsaw_threshold or FUSION_CONFIG["jigsaw_threshold"]
+        self.anomaly_threshold = anomaly_threshold or FUSION_CONFIG["anomaly_threshold"]
         self.deep_analysis_interval = FUSION_CONFIG["deep_analysis_min_interval"]
 
         # 滑动窗口
@@ -97,6 +99,7 @@ class ResultAggregator:
         self._deep_analysis_in_progress = False
         self._last_deep_analysis_time = 0
         self._frame_callback = frame_callback
+        self._deep_analysis_callback = deep_analysis_callback
 
         # 统计
         self.stats = {
@@ -133,7 +136,7 @@ class ResultAggregator:
             fusion_result = FusionResult(
                 frame_id=frame_result.frame_id,
                 timestamp=frame_result.timestamp,
-                jigsaw_score=frame_result.jigsaw_score,
+                anomaly_score=frame_result.anomaly_score,
                 spatial_score=frame_result.spatial_score,
                 temporal_score=frame_result.temporal_score,
                 window_status=window_status
@@ -192,7 +195,7 @@ class ResultAggregator:
             )
 
         total = len(self._window_buffer)
-        anomalous = sum(1 for f in self._window_buffer if f.jigsaw_score < self.jigsaw_threshold)
+        anomalous = sum(1 for f in self._window_buffer if f.anomaly_score >= self.anomaly_threshold)
         ratio = anomalous / total if total > 0 else 0.0
 
         return WindowStatus(
@@ -206,12 +209,34 @@ class ResultAggregator:
     def _select_frames_for_deep_analysis(self) -> List[FrameResult]:
         from config import FUSION_CONFIG
 
-        anomalous_frames = [f for f in self._window_buffer if f.jigsaw_score < self.jigsaw_threshold]
         batch_size = FUSION_CONFIG["deep_analysis_batch_size"]
+        sample_window_seconds = FUSION_CONFIG["deep_analysis_sample_window_seconds"]
+
+        # 选择最近 sample_window_seconds 时间范围内的帧
+        current_time = time.time()
+        cutoff_time = current_time - sample_window_seconds
+        recent_frames = [f for f in self._window_buffer if f.received_time >= cutoff_time]
+
+        if not recent_frames:
+            recent_frames = list(self._window_buffer)
+
+        # 优先选择异常帧（分数 >= threshold）
+        anomalous_frames = [f for f in recent_frames if f.anomaly_score >= self.anomaly_threshold]
         if len(anomalous_frames) >= batch_size:
-            return anomalous_frames[-batch_size:]
-        window_frames = list(self._window_buffer)
-        return window_frames[-batch_size:]
+            # 均匀采样异常帧
+            step = len(anomalous_frames) / batch_size
+            indices = [int(i * step) for i in range(batch_size)]
+            return [anomalous_frames[i] for i in indices]
+
+        # 异常帧不足时，均匀采样所有帧
+        if len(recent_frames) <= batch_size:
+            return recent_frames
+
+        step = len(recent_frames) / batch_size
+        indices = [int(i * step) for i in range(batch_size)]
+        sampled_frames = [recent_frames[i] for i in indices]
+
+        return sampled_frames
 
     def _perform_deep_analysis(self, fusion_result: FusionResult, frames_to_analyze: List[FrameResult]) -> FusionResult:
         """执行深度分析"""
@@ -223,7 +248,7 @@ class ResultAggregator:
                     "frame_id": f.frame_id,
                     "image_base64": f.color_base64,
                     "timestamp": f.timestamp,
-                    "jigsaw_score": f.jigsaw_score,
+                    "anomaly_score": f.anomaly_score,
                 }
                 for f in frames_to_analyze
             ]
@@ -240,6 +265,13 @@ class ResultAggregator:
                     deep_result.explanation
                 )
                 self.stats["confirmed_anomalies"] += 1
+
+            # 调用深度分析回调，传递帧列表和结果
+            if self._deep_analysis_callback and frames_to_analyze:
+                try:
+                    self._deep_analysis_callback(frames_to_analyze, fusion_result)
+                except Exception as e:
+                    print(f"深度分析回调失败: {e}")
 
         except Exception as e:
             print(f"深度分析失败: {e}")
@@ -265,7 +297,7 @@ class ResultAggregator:
         if fusion_result.window_status:
             if fusion_result.window_status.should_trigger_deep_analysis:
                 return "suspicious"
-            elif fusion_result.jigsaw_score < self.jigsaw_threshold:
+            elif fusion_result.anomaly_score >= self.anomaly_threshold:
                 return "suspicious"
 
         return "normal"
@@ -306,7 +338,7 @@ class ResultAggregator:
                 "window_total_frames": window_status.total_frames,
                 "window_anomalous_frames": window_status.anomalous_frames,
                 "window_anomaly_ratio": window_status.anomaly_ratio,
-                "jigsaw_threshold": self.jigsaw_threshold,
+                "anomaly_threshold": self.anomaly_threshold,
                 "window_threshold_percent": self.window_threshold,
                 "deep_analysis_in_progress": self._deep_analysis_in_progress,
                 "stats": self.stats,
@@ -327,14 +359,14 @@ def main():
             timestamp=i * 0.2,
             color_base64="test_base64",
             depth_base64=None,
-            jigsaw_score=0.3 if i < 5 else 0.7,
+            anomaly_score=0.3 if i < 5 else 0.7,
             spatial_score=0.5,
             temporal_score=0.5,
             is_anomalous=i < 5,
             received_time=time.time()
         )
         result = aggregator.add_frame_result(frame)
-        print(f"帧{i}: 分数={result.jigsaw_score:.2f}, 决策={result.final_decision}")
+        print(f"帧{i}: 分数={result.anomaly_score:.2f}, 决策={result.final_decision}")
 
     print(f"\n状态: {aggregator.get_status()}")
     cloud_client.stop()
